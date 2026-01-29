@@ -60,15 +60,6 @@ The system detects the correct inference script based on model name.
 - `OpenGVLab/InternVL2-Llama3-76B`
 
 
-**Usage:**
-```bash
-python batch_runner.py \
-  --input my_questions.jsonl \
-  --images /path/to/images \
-  --output results \
-  --model OpenGVLab/InternVL2-8B
-```
-
 ## Input Format
 
 JSONL file where each line contains:
