@@ -59,6 +59,7 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
         'tokenizer': tokenizer,
         'max_new_tokens': max_new_tokens,
         'decode_text': True,
+        'use_cache': False,
     })
     
     # Generate
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"ERROR in infer_mplug_owl3.py: {e}", file=sys.stderr)
+        print(f"ERROR in infer_mplug.py: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)
         sys.exit(1)
