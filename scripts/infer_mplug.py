@@ -43,10 +43,11 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     
     # Build messages with image placeholders and prompt
     image_tokens = "".join(["<|image|>" for _ in images])
-    combined_prompt = f"{SYSTEM_PROMPT}\n\n{image_tokens}\n{prompt}"
+    user_content = f"{image_tokens}{SYSTEM_PROMPT}\n\n{prompt}"
     
     messages = [
-        {"role": "user", "content": combined_prompt}
+        {"role": "user", "content": user_content},
+        {"role": "assistant", "content": ""}
     ]
     
     # Process inputs
@@ -62,7 +63,12 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     })
     
     # Generate
-    output_text = model.generate(**inputs)
+    output = model.generate(**inputs)
+    
+    if isinstance(output, list):
+        output_text = output[0] if output else ""
+    else:
+        output_text = str(output)
     
     # Write output
     with open(output_file, 'w', encoding='utf-8') as f:
