@@ -1,0 +1,25 @@
+{
+  "overall": {
+    "accuracy": 0.7272727272727273,
+    "correct": 8,
+    "total": 11
+  },
+  "macro_skill_accuracy": 0.6944444444444445,
+  "per_skill": {
+    "distance_awareness": {
+      "accuracy": 0.75,
+      "correct": 3,
+      "total": 4
+    },
+    "navigation": {
+      "accuracy": 0.3333333333333333,
+      "correct": 1,
+      "total": 3
+    },
+    "relative_agents": {
+      "accuracy": 1.0,
+      "correct": 4,
+      "total": 4
+    }
+  }
+}

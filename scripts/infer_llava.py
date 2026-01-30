@@ -1,8 +1,3 @@
-"""
-Inference script for LLaVA family models.
-Supports: LLaVA OneVision (7B, 72B), LLaVA Video, LLaVA NeXT Video
-"""
-
 import argparse
 import sys
 import torch
@@ -37,7 +32,6 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     images = [load_and_resize(img_path) for img_path in image_paths]
     
     # Build conversation with images
-    # LLaVA uses <image> placeholders in text
     image_placeholders = "".join(["<image>\n" for _ in images])
     full_text = f"{image_placeholders}{prompt}"
     

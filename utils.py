@@ -30,7 +30,7 @@ def get_inference_script(model_name):
 
 
 def format_choices(choices):
-    """Format choices with A), B), C), D) labels."""
+    """Format choices"""
     labels = ['A', 'B', 'C', 'D']
     formatted = []
     for i, choice in enumerate(choices):
@@ -40,14 +40,14 @@ def format_choices(choices):
 
 
 def build_full_prompt(question, choices):
-    """Build the complete prompt with question and formatted choices."""
+    """Build the complete prompt"""
     formatted_choices = format_choices(choices)
     full_prompt = f"{question}\n\nChoices:\n{formatted_choices}"
     return full_prompt
 
 
 def extract_answer_letter(prediction):
-    """Extract the letter from prediction (A, B, C, or D)."""
+    """Extract the letter from prediction"""
     pred_upper = prediction.strip().upper()
     for letter in ['A', 'B', 'C', 'D']:
         if pred_upper.startswith(f"{letter})") or pred_upper.startswith(letter):
@@ -56,7 +56,7 @@ def extract_answer_letter(prediction):
 
 
 def ground_truth_to_letter(ground_truth, choices):
-    """Convert ground truth text to letter based on choices."""
+    """Convert ground truth text to letter based on choices"""
     try:
         index = choices.index(ground_truth)
         return chr(65 + index) 
@@ -65,7 +65,7 @@ def ground_truth_to_letter(ground_truth, choices):
 
 
 def compute_summary(results):
-    """Compute accuracy summary by skill and overall."""
+    """Compute accuracy summary by skill and overall"""
     total_correct = 0
     total_samples = 0
     by_skill = {}
@@ -126,7 +126,7 @@ def compute_summary(results):
 
 
 def save_results(results, predictions_file, summary_file):
-    """Save predictions JSONL and summary JSON."""
+    """Save predictions JSONL and summary JSON"""
     # Ensure output directory exists
     Path(predictions_file).parent.mkdir(parents=True, exist_ok=True)
     Path(summary_file).parent.mkdir(parents=True, exist_ok=True)
@@ -143,7 +143,7 @@ def save_results(results, predictions_file, summary_file):
 
 
 def print_summary(summary):
-    """Print summary statistics."""
+    """Print summary statistics"""
     print(f"\n{'='*60}")
     print(f"Overall: {summary['overall']['accuracy']:.2%} ({summary['overall']['correct']}/{summary['overall']['total']})")
     print(f"Macro: {summary['macro_skill_accuracy']:.2%}")

@@ -8,16 +8,34 @@ import sys
 import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
+import torchvision.transforms as T
+from torchvision.transforms.functional import InterpolationMode
 
 
-def load_and_resize(path):
-    """Open an image"""
-    img = Image.open(path).convert("RGB")
-    return img
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
+
+
+def build_transform(input_size):
+    transform = T.Compose([
+        T.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
+        T.Resize((input_size, input_size), interpolation=InterpolationMode.BICUBIC),
+        T.ToTensor(),
+        T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
+    ])
+    return transform
+
+
+def load_image(image_path, input_size=448):
+    """Load and transform image to pixel_values."""
+    image = Image.open(image_path).convert('RGB')
+    transform = build_transform(input_size=input_size)
+    pixel_values = transform(image).unsqueeze(0)
+    return pixel_values
 
 
 def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
-    """Run inference"""
+    """Run inference on multiple images with the given prompt."""
     
     with open(prompt_file, 'r', encoding='utf-8') as f:
         prompt = f.read()
@@ -34,26 +52,25 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
-    # Load images
-    images = [load_and_resize(img_path) for img_path in image_paths]
+    # Load images and convert to pixel_values
+    pixel_values_list = [load_image(img_path) for img_path in image_paths]
+    pixel_values = torch.cat(pixel_values_list, dim=0)
     
-    # Build prompt with image tokens
-    # InternVL uses <image> tokens for each image
-    image_tokens = "".join([f"Image-{i+1}: <image>\n" for i in range(len(images))])
-    full_prompt = f"{image_tokens}\n{prompt}"
+    if device == "cuda":
+        pixel_values = pixel_values.to(torch.bfloat16).cuda()
+    
+    # Build question with image tokens
+    num_images = len(image_paths)
+    image_tokens = ''.join([f'Image-{i+1}: <image>\n' for i in range(num_images)])
+    question = f"{image_tokens}\n{prompt}"
     
     # Generate response
-    with torch.no_grad():
-        response = model.chat(
-            tokenizer=tokenizer,
-            pixel_values=None,  # Will be processed from images
-            images=images,
-            question=full_prompt,
-            generation_config={
-                'max_new_tokens': max_new_tokens,
-                'do_sample': False,
-            }
-        )
+    generation_config = {
+        'max_new_tokens': max_new_tokens,
+        'do_sample': False,
+    }
+    
+    response = model.chat(tokenizer, pixel_values, question, generation_config)
     
     # Write output
     with open(output_file, 'w', encoding='utf-8') as f:
