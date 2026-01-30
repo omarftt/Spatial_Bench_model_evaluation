@@ -32,7 +32,7 @@ def get_inference_script(model_name):
     
     # mPLUG-Owl3 models
     elif "mplug-owl3" in model_lower or "mplug_owl3" in model_lower:
-        return "scripts/infer_mplug_owl3.py"
+        return "scripts/infer_mplug.py"
 
     
     # Default fallback
