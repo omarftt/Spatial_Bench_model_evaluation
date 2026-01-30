@@ -1,8 +1,3 @@
-"""
-Inference script for InternVL2 family models.
-Supports: InternVL2-2B, InternVL2-8B, InternVL2-26B, InternVL2-40B, InternVL2-Llama3-76B
-"""
-
 import argparse
 import sys
 import torch
@@ -12,9 +7,10 @@ import torchvision.transforms as T
 from torchvision.transforms.functional import InterpolationMode
 
 
+SYSTEM_PROMPT = "You are an AI assistant performing an academic benchmark evaluation. The following question/proposition has 4 possible answers that are presented in alphabetical order. You must respond ONLY with the correct choice to the question with 'A', 'B', 'C', or 'D', where each letter corresponds to its respective answer choice and the text of the choice. Do NOT provide any explanation or reasoning, ONLY the selected choice in the specified format. The solution must be based only on the visual evidence in the two images. If multiple answers seem plausible, choose the most consistent with the given views."
+
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
-
 
 def build_transform(input_size):
     transform = T.Compose([
@@ -26,11 +22,74 @@ def build_transform(input_size):
     return transform
 
 
-def load_image(image_path, input_size=448):
-    """Load and transform image to pixel_values."""
+def find_closest_aspect_ratio(aspect_ratio, target_ratios, width, height, image_size):
+    best_ratio_diff = float('inf')
+    best_ratio = (1, 1)
+    area = width * height
+    for ratio in target_ratios:
+        target_aspect_ratio = ratio[0] / ratio[1]
+        ratio_diff = abs(aspect_ratio - target_aspect_ratio)
+        if ratio_diff < best_ratio_diff:
+            best_ratio_diff = ratio_diff
+            best_ratio = ratio
+        elif ratio_diff == best_ratio_diff:
+            if area > 0.5 * image_size * image_size * ratio[0] * ratio[1]:
+                best_ratio = ratio
+    return best_ratio
+
+
+def dynamic_preprocess(image, min_num=1, max_num=12, image_size=448, use_thumbnail=False):
+
+    orig_width, orig_height = image.size
+    aspect_ratio = orig_width / orig_height
+
+    # Calculate possible tiling configurations
+    target_ratios = set(
+        (i, j) for n in range(min_num, max_num + 1) for i in range(1, n + 1) for j in range(1, n + 1) if
+        i * j <= max_num and i * j >= min_num)
+    target_ratios = sorted(target_ratios, key=lambda x: x[0] * x[1])
+
+    # Find the closest aspect ratio
+    target_aspect_ratio = find_closest_aspect_ratio(
+        aspect_ratio, target_ratios, orig_width, orig_height, image_size)
+
+    # Calculate target dimensions
+    target_width = image_size * target_aspect_ratio[0]
+    target_height = image_size * target_aspect_ratio[1]
+    blocks = target_aspect_ratio[0] * target_aspect_ratio[1]
+
+    # Resize image to target size
+    resized_img = image.resize((target_width, target_height))
+    processed_images = []
+    
+    # Split into tiles
+    for i in range(blocks):
+        box = (
+            (i % (target_width // image_size)) * image_size,
+            (i // (target_width // image_size)) * image_size,
+            ((i % (target_width // image_size)) + 1) * image_size,
+            ((i // (target_width // image_size)) + 1) * image_size
+        )
+        split_img = resized_img.crop(box)
+        processed_images.append(split_img)
+    
+    assert len(processed_images) == blocks
+    
+    # Add thumbnail for global context
+    if use_thumbnail and len(processed_images) != 1:
+        thumbnail_img = image.resize((image_size, image_size))
+        processed_images.append(thumbnail_img)
+    
+    return processed_images
+
+
+def load_and_preprocess(image_path, input_size=448, max_num=12):
+    """Load and dynamically preprocess image."""
     image = Image.open(image_path).convert('RGB')
     transform = build_transform(input_size=input_size)
-    pixel_values = transform(image).unsqueeze(0)
+    images = dynamic_preprocess(image, image_size=input_size, use_thumbnail=True, max_num=max_num)
+    pixel_values = [transform(img) for img in images]
+    pixel_values = torch.stack(pixel_values)
     return pixel_values
 
 
@@ -40,7 +99,6 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     with open(prompt_file, 'r', encoding='utf-8') as f:
         prompt = f.read()
     
-    # Load model and tokenizer
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     model = AutoModel.from_pretrained(
@@ -52,38 +110,47 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
-    # Load images and convert to pixel_values
-    pixel_values_list = [load_image(img_path) for img_path in image_paths]
+    # Load images with dynamic preprocessing
+    pixel_values_list = []
+    num_patches_list = []
+    
+    for img_path in image_paths:
+        pixel_values = load_and_preprocess(img_path, max_num=12)
+        pixel_values_list.append(pixel_values)
+        num_patches_list.append(pixel_values.size(0))
+    
+    # Concatenate all tiles
     pixel_values = torch.cat(pixel_values_list, dim=0)
     
     if device == "cuda":
         pixel_values = pixel_values.to(torch.bfloat16).cuda()
     
-    # Build question with image tokens
+    # Build question with proper image tokens and system prompt
     num_images = len(image_paths)
     image_tokens = ''.join([f'Image-{i+1}: <image>\n' for i in range(num_images)])
-    question = f"{image_tokens}\n{prompt}"
     
-    # Generate response
+    # Add system prompt at the beginning of the question
+    question = f"{SYSTEM_PROMPT}\n\n{image_tokens}\n{prompt}"
+    
     generation_config = {
         'max_new_tokens': max_new_tokens,
         'do_sample': False,
     }
     
-    response = model.chat(tokenizer, pixel_values, question, generation_config)
+    # Pass num_patches_list to preserve image boundaries
+    response = model.chat(tokenizer, pixel_values, question, generation_config, 
+                         num_patches_list=num_patches_list)
     
-    # Write output
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(response.strip())
 
 
 def main():
     parser = argparse.ArgumentParser(description="Multi-agent VQA with InternVL2 models")
-    parser.add_argument("--images", nargs='+', required=True, help="Paths to agent images")
-    parser.add_argument("--prompt_file", required=True, help="Path to file containing prompt text")
-    parser.add_argument("--output_file", required=True, help="Path to file for output text")
-    parser.add_argument("--model", default="OpenGVLab/InternVL2-8B",
-                       help="InternVL2 model name")
+    parser.add_argument("--images", nargs='+', required=True)
+    parser.add_argument("--prompt_file", required=True)
+    parser.add_argument("--output_file", required=True)
+    parser.add_argument("--model", default="OpenGVLab/InternVL2-8B")
     parser.add_argument("--max_new_tokens", type=int, default=128)
     args = parser.parse_args()
     

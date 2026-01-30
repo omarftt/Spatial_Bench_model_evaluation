@@ -10,17 +10,30 @@ def get_inference_script(model_name):
     if "qwen2.5-vl" in model_lower or "qwen2-vl" in model_lower:
         return "scripts/infer_qwen.py"
     
-    # LLaVA models
-    elif "llava" in model_lower:
+    # LLaVA and VILA models
+    elif "llava" in model_lower or "vila" in model_lower:
         return "scripts/infer_llava.py"
     
     # InternVL models
     elif "internvl" in model_lower:
         return "scripts/infer_internvl.py"
     
-    # Phi models
-    elif "phi" in model_lower and "vision" in model_lower:
-        return "scripts/infer_phi.py"
+    # MiniCPM-V models
+    elif "minicpm" in model_lower or "minicpm-v" in model_lower:
+        return "scripts/infer_minicpm.py"
+    
+    # Molmo models
+    elif "molmo" in model_lower:
+        return "scripts/infer_molmo.py"
+    
+    # Oryx models
+    elif "oryx" in model_lower:
+        return "scripts/infer_oryx.py"
+    
+    # mPLUG-Owl3 models
+    elif "mplug-owl3" in model_lower or "mplug_owl3" in model_lower:
+        return "scripts/infer_mplug_owl3.py"
+
     
     # Default fallback
     else:

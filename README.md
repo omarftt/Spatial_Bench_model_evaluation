@@ -21,43 +21,38 @@ python main.py --input data/annotations.jsonl --images data/images --model Qwen/
 
 The system detects the correct inference script based on model name.
 
-### Qwen Family (uses `scripts/infer_qwen.py`)
+### 7-8B Scale (Primary Priority)
 
-**1-4B Scale:**
-- `Qwen/Qwen2-VL-2B-Instruct`
-- `Qwen/Qwen2.5-VL-2B-Instruct`
+| Model Family | Model Name (for --model argument) | Status |
+|--------------|-----------------------------------|--------|
+| LLaVA-OneVision | `llava-hf/llava-onevision-qwen2-7b-ov-hf` | ✅ Supported |
+| Qwen2-VL | `Qwen/Qwen2-VL-7B-Instruct` | ✅ Supported |
+| Qwen2.5-VL | `Qwen/Qwen2.5-VL-7B-Instruct` | ✅ Supported |
+| LLaVA-NeXT-Video | `llava-hf/LLaVA-NeXT-Video-7B-hf` | ✅ Supported |
+| LLaVA-Video | `llava-hf/LLaVA-Video-7B-hf` | ❌ Not Supported |
+| InternVL2 | `OpenGVLab/InternVL2-8B` | ✅ Supported |
+| MiniCPM-V 2.6 | `openbmb/MiniCPM-V-2_6` | 🔄 Planned |
+| Molmo | `allenai/Molmo-7B-D-0924` | 🔄 Planned |
+| mPLUG-Owl | `MAGAer13/mplug-owl3-7b-241101` | 🔄 Planned |
+| VILA 1.5 | `Efficient-Large-Model/VILA1.5-8b` | 🔄 Planned |
+| Ovis 2 | `AIDC-AI/Ovis2-8B` | 🔄 Planned |
+| Oryx | `THU-MIG/Oryx-7B` | 🔄 Planned |
 
-**7-8B Scale:**
-- `Qwen/Qwen2-VL-7B-Instruct`
-- `Qwen/Qwen2.5-VL-7B-Instruct` ⭐ *default*
+### 1-4B Scale (Lesser Priority)
 
-**Larger:**
-- `Qwen/Qwen2-VL-72B-Instruct`
-- `Qwen/Qwen2.5-VL-72B-Instruct`
+| Model Family | Model Name (for --model argument) | Status |
+|--------------|-----------------------------------|--------|
+| Qwen2-VL | `Qwen/Qwen2-VL-2B-Instruct` | ✅ Supported |
+| InternVL2 | `OpenGVLab/InternVL2-2B` | ✅ Supported |
+| Phi-3.5-Vision | `microsoft/Phi-3.5-vision-instruct` | 🔄 Planned |
 
-### LLaVA Family (uses `scripts/infer_llava.py`)
+### Larger Scale (Lesser Priority)
 
-**7-8B Scale:**
-- `llava-hf/llava-onevision-qwen2-7b-ov-hf`
-- `llava-hf/llava-onevision-qwen2-7b-si-hf`
-- `llava-hf/LLaVA-Video-7B-hf`
+| Model Family | Model Name (for --model argument) | Status |
+|--------------|-----------------------------------|--------|
+| Qwen2-VL 72B | `Qwen/Qwen2-VL-72B-Instruct` | 🔄 Planned |
+| LLaVA-OneVision 72B | `llava-hf/llava-onevision-qwen2-72b-ov-hf` | 🔄 Planned |
 
-**Larger:**
-- `llava-hf/llava-onevision-qwen2-72b-ov-hf`
-- `llava-hf/llava-onevision-qwen2-72b-si-hf`
-
-### InternVL Family (uses `scripts/infer_internvl.py`)
-
-**1-4B Scale:**
-- `OpenGVLab/InternVL2-2B`
-
-**7-8B Scale:**
-- `OpenGVLab/InternVL2-8B`
-
-**Larger:**
-- `OpenGVLab/InternVL2-26B`
-- `OpenGVLab/InternVL2-40B`
-- `OpenGVLab/InternVL2-Llama3-76B`
 
 
 ## Input Format
