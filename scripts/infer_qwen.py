@@ -5,8 +5,7 @@ from PIL import Image
 from transformers import AutoProcessor
 from qwen_vl_utils import process_vision_info
 
-
-SYSTEM_PROMPT = "You are an AI assistant performing an academic benchmark evaluation. The following question/proposition has 4 possible answers that are presented in alphabetical order. You must respond ONLY with the correct choice to the question with 'A', 'B', 'C', or 'D', where each letter corresponds to its respective answer choice and the text of the choice. Do NOT provide any explanation or reasoning, ONLY the selected choice in the specified format. The solution must be based only on the visual evidence in the two images. If multiple answers seem plausible, choose the most consistent with the given views."
+from prompts import SYSTEM_PROMPT
 
 
 def load_and_preprocess(path):
@@ -64,11 +63,11 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     messages = [
         {
             "role": "system",
-            "content": "text", "text": SYSTEM_PROMPT
+            "content": [{"type": "text", "text": SYSTEM_PROMPT}],
         },
         {
             "role": "user",
-            "content": content,
+            "content": content,  # your images + prompt text
         }
     ]
 

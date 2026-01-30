@@ -3,7 +3,6 @@
 .venv
 .env
 *.jsonl
-*.txt
 *.xlsx
 __pycache__/
 *.pyc
