@@ -22,7 +22,6 @@ def get_inference_script(model_name):
     elif "molmo" in model_lower:
         return "scripts/infer_molmo.py"
 
-    
     # Default fallback
     else:
         raise ValueError(
