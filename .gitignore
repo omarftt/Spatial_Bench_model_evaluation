@@ -12,3 +12,4 @@ __pycache__/
 outputs1
 results/
 utils/
+.gitignore

@@ -150,7 +150,7 @@ def main():
     parser.add_argument("--images", nargs='+', required=True)
     parser.add_argument("--prompt_file", required=True)
     parser.add_argument("--output_file", required=True)
-    parser.add_argument("--model", default="OpenGVLab/InternVL2-8B")
+    parser.add_argument("--model", default="OpenGVLab/InternVL3-8B")
     parser.add_argument("--max_new_tokens", type=int, default=128)
     args = parser.parse_args()
     

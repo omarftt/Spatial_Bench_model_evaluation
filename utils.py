@@ -18,21 +18,9 @@ def get_inference_script(model_name):
     elif "internvl" in model_lower:
         return "scripts/infer_internvl.py"
     
-    # MiniCPM-V models
-    elif "minicpm" in model_lower or "minicpm-v" in model_lower:
-        return "scripts/infer_minicpm.py"
-    
     # Molmo models
     elif "molmo" in model_lower:
         return "scripts/infer_molmo.py"
-    
-    # Oryx models
-    elif "oryx" in model_lower:
-        return "scripts/infer_oryx.py"
-    
-    # mPLUG-Owl3 models
-    elif "mplug-owl3" in model_lower or "mplug_owl3" in model_lower:
-        return "scripts/infer_mplug.py"
 
     
     # Default fallback
