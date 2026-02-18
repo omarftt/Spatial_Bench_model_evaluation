@@ -55,6 +55,23 @@ The system detects the correct inference script based on model name.
 
 
 
+## Annotation Tool
+
+GUI tool for reviewing and annotating JSONL benchmark entries.
+
+```bash
+# Basic usage
+python annotator_tool.py --input data/bench_full.jsonl --images data/images --output annotated.jsonl
+
+# Filter to specific skills
+python annotator_tool.py --input data/bench_full.jsonl --images data/images --output annotated.jsonl --skills navigation relative_agents
+
+# Display images horizontally flipped (output saves original filenames)
+python annotator_tool.py --input data/bench_full.jsonl --images data/images --output annotated.jsonl --flip
+```
+
+Requires `pip install Pillow`.
+
 ## Input Format
 
 JSONL file where each line contains:
