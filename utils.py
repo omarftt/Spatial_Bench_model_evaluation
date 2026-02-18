@@ -22,6 +22,10 @@ def get_inference_script(model_name):
     elif "molmo" in model_lower:
         return "scripts/infer_molmo.py"
 
+    # Gemini models
+    elif "gemini" in model_lower:
+        return "scripts/infer_gemini.py"
+
     # Default fallback
     else:
         raise ValueError(
