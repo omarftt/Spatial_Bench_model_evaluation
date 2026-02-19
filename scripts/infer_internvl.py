@@ -6,7 +6,7 @@ from transformers import AutoModel, AutoTokenizer
 import torchvision.transforms as T
 from torchvision.transforms.functional import InterpolationMode
 
-from prompts import SYSTEM_PROMPT
+from scripts.prompts import SYSTEM_PROMPT
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)

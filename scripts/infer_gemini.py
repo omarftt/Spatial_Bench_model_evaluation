@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part
 
-from prompts import SYSTEM_PROMPT
+from scripts.prompts import SYSTEM_PROMPT
 
 
 def load_images(image_paths):

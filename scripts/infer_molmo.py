@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoProcessor, GenerationConfig
 
-from prompts import SYSTEM_PROMPT
+from scripts.prompts import SYSTEM_PROMPT
 
 
 def load_and_preprocess(path):

@@ -5,7 +5,7 @@ from PIL import Image
 from transformers import AutoProcessor
 from qwen_vl_utils import process_vision_info
 
-from prompts import SYSTEM_PROMPT
+from scripts.prompts import SYSTEM_PROMPT
 
 
 def load_and_preprocess(path):
