@@ -128,7 +128,7 @@ def prepare_internvl_inputs(image_paths, max_num=12):
     return pixel_values, num_patches_list
 
 
-def generate_internvl(model, tokenizer, pixel_values, prompt, num_patches_list, max_new_tokens):
+def generate_internvl(model, tokenizer, pixel_values, num_patches_list, prompt, max_new_tokens):
     # Move to device if needed
     device = next(model.parameters()).device
     if device.type == "cuda":
@@ -165,7 +165,7 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     pixel_values, num_patches_list = prepare_internvl_inputs(image_paths, max_num=12)
 
     # Generate response
-    response = generate_internvl(model, tokenizer, pixel_values, prompt, num_patches_list, max_new_tokens)
+    response = generate_internvl(model, tokenizer, pixel_values, num_patches_list, prompt, max_new_tokens)
 
     # Write output
     with open(output_file, 'w', encoding='utf-8') as f:

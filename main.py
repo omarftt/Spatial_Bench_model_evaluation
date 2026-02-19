@@ -20,7 +20,7 @@ def run_inference(image_paths, prompt, model, processor, inference_fn, max_token
 
     # InternVL expects image paths, not PIL images
     if "internvl" in model_lower:
-        images = image_paths  # Pass paths directly
+        images = image_paths
     else:
         # Other models expect PIL images
         images = [Image.open(img).convert("RGB") for img in image_paths]
