@@ -16,30 +16,38 @@ def load_and_preprocess(path):
 
 def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
     """Run inference on multiple images with the given prompt."""
-    
+
     with open(prompt_file, 'r', encoding='utf-8') as f:
         prompt = f.read()
-    
+
     # Load model and processor
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    # LLaVA and VILA models supported
-    try:
-        model = LlavaOnevisionForConditionalGeneration.from_pretrained(
+    model_name_lower = model_name.lower()
+
+    if "next-video" in model_name_lower:
+        from transformers import LlavaNextVideoForConditionalGeneration, LlavaNextVideoProcessor
+        model = LlavaNextVideoForConditionalGeneration.from_pretrained(
             model_name,
             torch_dtype=torch.float16 if device == "cuda" else torch.float32,
             device_map="auto" if device == "cuda" else None,
         )
-    except Exception:
-        # Fallback for older LLaVA models or VILA models
-        from transformers import LlavaForConditionalGeneration
-        model = LlavaForConditionalGeneration.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            device_map="auto" if device == "cuda" else None,
-        )
-    
-    processor = AutoProcessor.from_pretrained(model_name)
+        processor = LlavaNextVideoProcessor.from_pretrained(model_name)
+    else:
+        try:
+            model = LlavaOnevisionForConditionalGeneration.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                device_map="auto" if device == "cuda" else None,
+            )
+        except Exception:
+            # Fallback for older LLaVA models or VILA models
+            from transformers import LlavaForConditionalGeneration
+            model = LlavaForConditionalGeneration.from_pretrained(
+                model_name,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                device_map="auto" if device == "cuda" else None,
+            )
+        processor = AutoProcessor.from_pretrained(model_name)
 
     # Load images
     images = [load_and_preprocess(img_path) for img_path in image_paths]
