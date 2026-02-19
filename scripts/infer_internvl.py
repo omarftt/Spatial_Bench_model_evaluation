@@ -8,7 +8,6 @@ from torchvision.transforms.functional import InterpolationMode
 
 from prompts import SYSTEM_PROMPT
 
-
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
@@ -93,56 +92,84 @@ def load_and_preprocess(image_path, input_size=448, max_num=12):
     return pixel_values
 
 
-def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
-    """Run inference on multiple images with the given prompt."""
-    
-    with open(prompt_file, 'r', encoding='utf-8') as f:
-        prompt = f.read()
-    
+def load_internvl_model(model_name, multi_gpu=False):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
+    device_map = "balanced" if (multi_gpu and device == "cuda") else ("auto" if device == "cuda" else None)
+    torch_dtype = torch.bfloat16 if device == "cuda" else torch.float32
+
     model = AutoModel.from_pretrained(
         model_name,
-        torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
+        torch_dtype=torch_dtype,
         trust_remote_code=True,
-        device_map="auto" if device == "cuda" else None,
+        device_map=device_map,
     ).eval()
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
-    # Load images with dynamic preprocessing
+    # Disable gradients
+    for param in model.parameters():
+        param.requires_grad = False
+
+    return model, tokenizer
+
+
+def prepare_internvl_inputs(image_paths, max_num=12):
     pixel_values_list = []
     num_patches_list = []
-    
+
     for img_path in image_paths:
-        pixel_values = load_and_preprocess(img_path, max_num=12)
+        pixel_values = load_and_preprocess(img_path, max_num=max_num)
         pixel_values_list.append(pixel_values)
         num_patches_list.append(pixel_values.size(0))
-    
+
     # Concatenate all tiles
     pixel_values = torch.cat(pixel_values_list, dim=0)
-    
-    if device == "cuda":
+
+    return pixel_values, num_patches_list
+
+
+def generate_internvl(model, tokenizer, pixel_values, prompt, num_patches_list, max_new_tokens):
+    # Move to device if needed
+    device = next(model.parameters()).device
+    if device.type == "cuda":
         pixel_values = pixel_values.to(torch.bfloat16).cuda()
-    
+
     # Build question with proper image tokens and system prompt
-    num_images = len(image_paths)
+    num_images = len(num_patches_list)
     image_tokens = ''.join([f'Image-{i+1}: <image>\n' for i in range(num_images)])
-    
+
     # Add system prompt at the beginning of the question
     question = f"{SYSTEM_PROMPT}\n\n{image_tokens}\n{prompt}"
-    
+
     generation_config = {
         'max_new_tokens': max_new_tokens,
         'do_sample': False,
     }
-    
+
     # Pass num_patches_list to preserve image boundaries
-    response = model.chat(tokenizer, pixel_values, question, generation_config, 
+    response = model.chat(tokenizer, pixel_values, question, generation_config,
                          num_patches_list=num_patches_list)
-    
+
+    return response.strip()
+
+
+def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
+    """Run inference on multiple images with the given prompt."""
+    with open(prompt_file, 'r', encoding='utf-8') as f:
+        prompt = f.read()
+
+    # Load model and tokenizer
+    model, tokenizer = load_internvl_model(model_name, multi_gpu=False)
+
+    # Prepare inputs with dynamic preprocessing
+    pixel_values, num_patches_list = prepare_internvl_inputs(image_paths, max_num=12)
+
+    # Generate response
+    response = generate_internvl(model, tokenizer, pixel_values, prompt, num_patches_list, max_new_tokens)
+
+    # Write output
     with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(response.strip())
+        f.write(response)
 
 
 def main():

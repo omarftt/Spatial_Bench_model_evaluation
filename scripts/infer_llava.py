@@ -7,51 +7,53 @@ from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
 from prompts import SYSTEM_PROMPT
 
 
-
 def load_and_preprocess(path):
     """Open an image"""
     img = Image.open(path).convert("RGB")
     return img
 
 
-def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
-    """Run inference on multiple images with the given prompt."""
-
-    with open(prompt_file, 'r', encoding='utf-8') as f:
-        prompt = f.read()
-
-    # Load model and processor
+def load_llava_model(model_name, multi_gpu=False):
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    device_map = "balanced" if (multi_gpu and device == "cuda") else ("auto" if device == "cuda" else None)
+    torch_dtype = torch.float16 if device == "cuda" else torch.float32
+
     model_name_lower = model_name.lower()
 
     if "next-video" in model_name_lower:
         from transformers import LlavaNextVideoForConditionalGeneration, LlavaNextVideoProcessor
         model = LlavaNextVideoForConditionalGeneration.from_pretrained(
             model_name,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            device_map="auto" if device == "cuda" else None,
+            torch_dtype=torch_dtype,
+            device_map=device_map,
         )
         processor = LlavaNextVideoProcessor.from_pretrained(model_name)
     else:
         try:
             model = LlavaOnevisionForConditionalGeneration.from_pretrained(
                 model_name,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-                device_map="auto" if device == "cuda" else None,
+                torch_dtype=torch_dtype,
+                device_map=device_map,
             )
         except Exception:
             # Fallback for older LLaVA models or VILA models
             from transformers import LlavaForConditionalGeneration
             model = LlavaForConditionalGeneration.from_pretrained(
                 model_name,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-                device_map="auto" if device == "cuda" else None,
+                torch_dtype=torch_dtype,
+                device_map=device_map,
             )
         processor = AutoProcessor.from_pretrained(model_name)
 
-    # Load images
-    images = [load_and_preprocess(img_path) for img_path in image_paths]
-    
+    # Set to eval mode and disable gradients
+    model.eval()
+    for param in model.parameters():
+        param.requires_grad = False
+
+    return model, processor
+
+
+def prepare_llava_inputs(images, prompt, processor, model):
     # Build conversation with images
     conversation = [
         {
@@ -66,18 +68,23 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
             ]
         }
     ]
-    
+
     # Apply chat template
     prompt_text = processor.apply_chat_template(conversation, add_generation_prompt=True)
-    
+
     # Process inputs
+    device = next(model.parameters()).device
     inputs = processor(
         images=images,
         text=prompt_text,
         return_tensors="pt",
         padding=True
     ).to(device)
-    
+
+    return inputs
+
+
+def generate_llava(model, inputs, max_new_tokens):
     # Generate
     with torch.no_grad():
         generated_ids = model.generate(
@@ -85,17 +92,43 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
             max_new_tokens=max_new_tokens,
             do_sample=False
         )
-    
+
+    # Clear KV cache
+    if hasattr(model, 'past_key_values'):
+        model.past_key_values = None
+
     # Decode (strip input tokens)
     input_len = inputs["input_ids"].shape[1]
     generated_ids_trimmed = generated_ids[:, input_len:]
-    
+
+    # Get processor from model config
+    from transformers import AutoProcessor
+    processor = AutoProcessor.from_pretrained(model.config._name_or_path)
+
     output_text = processor.batch_decode(
         generated_ids_trimmed,
         skip_special_tokens=True,
         clean_up_tokenization_spaces=False
     )[0].strip()
-    
+
+    return output_text
+
+
+def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
+    """Run inference on multiple images with the given prompt."""
+    with open(prompt_file, 'r', encoding='utf-8') as f:
+        prompt = f.read()
+
+    # Load model and processor
+    model, processor = load_llava_model(model_name, multi_gpu=False)
+
+    # Load images
+    images = [load_and_preprocess(img_path) for img_path in image_paths]
+
+    # Prepare inputs and generate
+    inputs = prepare_llava_inputs(images, prompt, processor, model)
+    output_text = generate_llava(model, inputs, max_new_tokens)
+
     # Write output
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(output_text)

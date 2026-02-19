@@ -1,5 +1,13 @@
 import json
+import os
+import gc
 from pathlib import Path
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 
 def get_inference_script(model_name):
@@ -154,3 +162,44 @@ def print_summary(summary):
     for skill, stats in summary['per_skill'].items():
         print(f"  {skill}: {stats['accuracy']:.2%} ({stats['correct']}/{stats['total']})")
     print(f"{'='*60}")
+
+
+def check_multi_gpu():
+    if not TORCH_AVAILABLE or not torch.cuda.is_available():
+        return False
+
+    visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES', '')
+    if ',' in visible_devices:
+        device_list = [d.strip() for d in visible_devices.split(',') if d.strip()]
+        return len(device_list) > 1
+
+    # Fallback to torch detection
+    return torch.cuda.device_count() > 1
+
+
+def clear_cuda_cache():
+    if TORCH_AVAILABLE and torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+    gc.collect()
+
+
+def log_cuda_memory_stats(stage="", device_id=None):
+    if not TORCH_AVAILABLE or not torch.cuda.is_available():
+        return
+
+    devices = [device_id] if device_id is not None else range(torch.cuda.device_count())
+
+    print(f"CUDA Memory Stats - {stage}")
+
+    for i in devices:
+        allocated = torch.cuda.memory_allocated(i) / 1024**3
+        reserved = torch.cuda.memory_reserved(i) / 1024**3
+        max_allocated = torch.cuda.max_memory_allocated(i) / 1024**3
+
+        print(f"GPU {i}:")
+        print(f"Current Allocated: {allocated:.2f} GB")
+        print(f"Current Reserved:  {reserved:.2f} GB")
+        print(f"Peak Allocated:    {max_allocated:.2f} GB")
+
+    print(f"{'-'*60}\n")
