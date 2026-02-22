@@ -55,6 +55,7 @@ class AnnotatorApp(tk.Tk):
         self._photo_refs: list = []
 
         # Widgets set during _build_ui (referenced across methods)
+        self._id_label = None
         self._skill_label = None
         self._progress_label = None
         self._image_canvas = None
@@ -166,7 +167,18 @@ class AnnotatorApp(tk.Tk):
     def _build_header_frame(self, parent: tk.Widget) -> None:
         frame = tk.Frame(parent, bg=HEADER_BG, pady=6)
         frame.grid(row=0, column=0, sticky="ew")
-        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(2, weight=1)
+
+        self._id_label = tk.Label(
+            frame,
+            text="",
+            font=("Helvetica", 14, "bold"),
+            bg=HEADER_BG,
+            fg="#F39C12",
+            anchor=tk.W,
+            padx=10,
+        )
+        self._id_label.grid(row=0, column=0, sticky="w")
 
         self._skill_label = tk.Label(
             frame,
@@ -177,7 +189,7 @@ class AnnotatorApp(tk.Tk):
             anchor=tk.W,
             padx=10,
         )
-        self._skill_label.grid(row=0, column=0, sticky="w")
+        self._skill_label.grid(row=0, column=1, sticky="w")
 
         if self.flip:
             flip_lbl = tk.Label(
@@ -187,7 +199,7 @@ class AnnotatorApp(tk.Tk):
                 fg=FLIP_FG,
                 bg=HEADER_BG,
             )
-            flip_lbl.grid(row=0, column=1)
+            flip_lbl.grid(row=0, column=2)
 
         self._progress_label = tk.Label(
             frame,
@@ -197,7 +209,7 @@ class AnnotatorApp(tk.Tk):
             fg=HEADER_FG,
             padx=10,
         )
-        self._progress_label.grid(row=0, column=2, sticky="e")
+        self._progress_label.grid(row=0, column=3, sticky="e")
 
     def _build_image_frame(self, parent: tk.Widget) -> None:
         outer = tk.Frame(parent, bg=IMG_BG, bd=0)
@@ -395,6 +407,8 @@ class AnnotatorApp(tk.Tk):
             )
             entry.insert(0, choice_text)
             entry.pack(fill=tk.X, expand=True)
+            # Bind key release to update ground truth dropdown dynamically
+            entry.bind("<KeyRelease>", self._on_choice_edited)
             self._choice_entries.append(entry)
 
         # Rebuild OptionMenu
@@ -420,6 +434,55 @@ class AnnotatorApp(tk.Tk):
             )
             self._gt_menu.pack(side=tk.LEFT, padx=4)
 
+    def _on_choice_edited(self, event) -> None:
+        """Called when user edits any choice Entry - updates ground truth dropdown."""
+        if not self._choice_entries:
+            return
+
+        # Get the current choices from Entry widgets
+        current_choices = [entry.get() for entry in self._choice_entries]
+        if not current_choices:
+            return
+
+        # Get the original choices from data to find which index was selected
+        original_choices = self.data[self.current_index].get("choices", [])
+        current_gt = self._gt_var.get()
+
+        # Find the index of current ground truth in original choices
+        gt_index = None
+        if current_gt in original_choices:
+            gt_index = original_choices.index(current_gt)
+
+        # Rebuild the ground truth dropdown with updated choices
+        if self._gt_menu is not None:
+            self._gt_menu.destroy()
+            self._gt_menu = None
+
+        # If we know which choice was selected, use the updated text at that index
+        if gt_index is not None and gt_index < len(current_choices):
+            new_gt = current_choices[gt_index]
+        elif current_gt in current_choices:
+            # Current GT still exists in the new choices
+            new_gt = current_gt
+        else:
+            # Default to first choice if current GT is not found
+            new_gt = current_choices[0]
+
+        self._gt_var.set(new_gt)
+
+        # Rebuild the OptionMenu with current choices
+        self._gt_menu = tk.OptionMenu(self._gt_row_frame, self._gt_var, *current_choices)
+        self._gt_menu.config(
+            font=("Helvetica", 10),
+            width=70,
+            bg=ENTRY_BG,
+            fg=ENTRY_FG,
+            relief=tk.FLAT,
+            activebackground="#D5E8F7",
+            highlightthickness=0,
+        )
+        self._gt_menu.pack(side=tk.LEFT, padx=4)
+
     def display_item(self, index: int) -> None:
         n = len(self.data)
         index = max(0, min(index, n - 1))
@@ -429,7 +492,9 @@ class AnnotatorApp(tk.Tk):
         self.update_fields(index)
 
         row = self.data[index]
+        sample_id = row.get("id", "N/A")
         skill = row.get("skill", "")
+        self._id_label.config(text=f"ID: {sample_id}")
         self._skill_label.config(text=f"Skill: {skill}")
         self._progress_label.config(text=f"Item {index + 1} / {n}")
 

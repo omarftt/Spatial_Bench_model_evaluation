@@ -18,8 +18,8 @@ from utils import build_full_prompt, save_results, print_summary, check_multi_gp
 def run_inference(image_paths, prompt, model, processor, inference_fn, max_tokens, model_name):
     model_lower = model_name.lower()
 
-    # InternVL expects image paths, not PIL images
-    if "internvl" in model_lower:
+    # InternVL and Gemini expect image paths, not PIL images
+    if "internvl" in model_lower or "gemini" in model_lower:
         images = image_paths
     else:
         # Other models expect PIL images
@@ -29,7 +29,7 @@ def run_inference(image_paths, prompt, model, processor, inference_fn, max_token
     prediction = inference_fn(model, processor, images, prompt, max_tokens)
 
     # Memory cleanup
-    if "internvl" not in model_lower:
+    if "internvl" not in model_lower and "gemini" not in model_lower:
         del images
     gc.collect()
 
