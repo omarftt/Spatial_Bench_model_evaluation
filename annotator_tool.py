@@ -411,6 +411,28 @@ class AnnotatorApp(tk.Tk):
             entry.bind("<KeyRelease>", self._on_choice_edited)
             self._choice_entries.append(entry)
 
+            # Add flip directions button in the same row (only in flip mode)
+            if self.flip:
+                ttk.Button(
+                    row,
+                    text="⟺",
+                    width=3,
+                    style="Swap.TButton",
+                    command=lambda idx=i: self._flip_choice_directions(idx),
+                ).pack(side=tk.RIGHT, padx=4)
+
+        # Add "Flip All" button in a separate row below (only in flip mode)
+        if self.flip:
+            set_four_row = tk.Frame(self._choices_container, bg=BG)
+            set_four_row.pack(fill=tk.X, pady=1)
+            ttk.Button(
+                set_four_row,
+                text="⟺×4",
+                width=3,
+                style="Swap.TButton",
+                command=self.set_four_choices,
+            ).pack(side=tk.RIGHT, padx=4)
+
         # Rebuild OptionMenu
         if self._gt_menu is not None:
             self._gt_menu.destroy()
@@ -433,6 +455,78 @@ class AnnotatorApp(tk.Tk):
                 highlightthickness=0,
             )
             self._gt_menu.pack(side=tk.LEFT, padx=4)
+
+    def _flip_choice_directions(self, choice_index: int) -> None:
+        """Flip directional terms (left/right, east/west, etc.) in a choice entry."""
+        if choice_index >= len(self._choice_entries):
+            return
+
+        entry = self._choice_entries[choice_index]
+        old_text = entry.get()
+
+        # Check if this choice is currently the ground truth
+        current_gt = self._gt_var.get()
+        is_current_gt = (old_text == current_gt)
+
+        # Define directional pairs to swap
+        # Order matters: do longer terms first to avoid partial matches
+        swap_pairs = [
+            ("counterclockwise", "clockwise"),
+            ("clockwise", "counterclockwise"),
+            ("southeast", "northwest"),
+            ("northwest", "southeast"),
+            ("southwest", "northeast"),
+            ("northeast", "southwest"),
+            ("left", "right"),
+            ("right", "left"),
+            ("east", "west"),
+            ("west", "east"),
+        ]
+
+        import re
+
+        # Build a mapping of positions to replacements
+        replacements = []
+
+        for original, target in swap_pairs:
+            # Case-insensitive word boundary pattern
+            pattern = re.compile(r'\b' + re.escape(original) + r'\b', re.IGNORECASE)
+            for match in pattern.finditer(old_text):
+                start, end = match.span()
+                original_word = old_text[start:end]
+
+                # Check if this position is already marked for replacement
+                # (to avoid replacing counterclockwise when we already replaced clockwise)
+                already_replaced = any(start >= r[0] and end <= r[1] for r in replacements)
+                if already_replaced:
+                    continue
+
+                # Preserve case pattern
+                if original_word.isupper():
+                    replacement = target.upper()
+                elif original_word[0].isupper():
+                    replacement = target[0].upper() + target[1:]
+                else:
+                    replacement = target.lower()
+
+                replacements.append((start, end, replacement))
+
+        # Sort by position (descending) and apply replacements
+        replacements.sort(key=lambda x: x[0], reverse=True)
+        result = old_text
+        for start, end, replacement in replacements:
+            result = result[:start] + replacement + result[end:]
+
+        # Update the entry
+        entry.delete(0, tk.END)
+        entry.insert(0, result)
+
+        # If this choice was the ground truth, update GT to the new text
+        if is_current_gt:
+            self._gt_var.set(result)
+
+        # Trigger the choice edited event to update ground truth dropdown
+        self._on_choice_edited(None)
 
     def _on_choice_edited(self, event) -> None:
         """Called when user edits any choice Entry - updates ground truth dropdown."""
@@ -609,6 +703,15 @@ class AnnotatorApp(tk.Tk):
     def go_next(self) -> None:
         if self.current_index < len(self.data) - 1:
             self.display_item(self.current_index + 1)
+
+    def set_four_choices(self) -> None:
+        """Flip directions in all 4 choices at once."""
+        # Flip directions in all choice entries
+        for i in range(len(self._choice_entries)):
+            self._flip_choice_directions(i)
+
+        # Update status
+        self._set_status(f"Flipped directions in all choices for item {self.current_index + 1}")
 
     def go_to_index(self) -> None:
         raw = self._goto_var.get().strip()
