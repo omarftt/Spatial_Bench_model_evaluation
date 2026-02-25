@@ -1,26 +1,34 @@
 import argparse
 import sys
 import os
+import io
 from dotenv import load_dotenv
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part
+from PIL import Image
 
 from scripts.prompts import SYSTEM_PROMPT
 
 
-def load_images(image_paths):
-    """Load images and create Parts for Vertex AI."""
+def load_images(image_paths, flip=False):
+    """Load images and create Parts for Vertex AI, optionally flipping horizontally."""
     img_parts = []
     for i, img_path in enumerate(image_paths):
         img_parts.append(Part.from_text(f"Image {i+1}:"))
-        img_parts.append(Part.from_data(
-            data=open(img_path, 'rb').read(),
-            mime_type="image/png" if img_path.endswith('.png') else "image/jpeg"
-        ))
+        mime = "image/png" if img_path.lower().endswith('.png') else "image/jpeg"
+        if flip:
+            img = Image.open(img_path).convert("RGB")
+            img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG" if mime == "image/png" else "JPEG")
+            data = buf.getvalue()
+        else:
+            data = open(img_path, 'rb').read()
+        img_parts.append(Part.from_data(data=data, mime_type=mime))
     return img_parts
 
 
-def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
+def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens, flip=False):
     """Run inference on multiple images with the given prompt."""
     load_dotenv()
 
@@ -35,7 +43,7 @@ def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tok
     with open(prompt_file, 'r', encoding='utf-8') as f:
         prompt = f.read()
 
-    img_parts = load_images(image_paths)
+    img_parts = load_images(image_paths, flip=flip)
     content_parts = img_parts + [Part.from_text(prompt)]
 
     model = GenerativeModel(model_name, system_instruction=[SYSTEM_PROMPT])
@@ -62,6 +70,7 @@ def main():
     parser.add_argument("--output_file", required=True, help="Path to file for output text")
     parser.add_argument("--model", default="gemini-2.5-pro", help="Gemini model name")
     parser.add_argument("--max_new_tokens", type=int, default=128)
+    parser.add_argument("--flip_horizontal", action="store_true", help="Mirror images horizontally before inference")
     args = parser.parse_args()
 
     run_inference(
@@ -69,7 +78,8 @@ def main():
         prompt_file=args.prompt_file,
         output_file=args.output_file,
         model_name=args.model,
-        max_new_tokens=args.max_new_tokens
+        max_new_tokens=args.max_new_tokens,
+        flip=args.flip_horizontal,
     )
 
 

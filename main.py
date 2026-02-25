@@ -15,7 +15,7 @@ except ImportError:
 from utils import build_full_prompt, save_results, print_summary, check_multi_gpu, clear_cuda_cache, log_cuda_memory_stats
 
 
-def run_inference(image_paths, prompt, model, processor, inference_fn, max_tokens, model_name):
+def run_inference(image_paths, prompt, model, processor, inference_fn, max_tokens, model_name, flip=False):
     model_lower = model_name.lower()
 
     # InternVL and Gemini expect image paths, not PIL images
@@ -24,6 +24,8 @@ def run_inference(image_paths, prompt, model, processor, inference_fn, max_token
     else:
         # Other models expect PIL images
         images = [Image.open(img).convert("RGB") for img in image_paths]
+        if flip:
+            images = [img.transpose(Image.Transpose.FLIP_LEFT_RIGHT) for img in images]
 
     # Run model-specific inference function
     prediction = inference_fn(model, processor, images, prompt, max_tokens)
@@ -56,7 +58,9 @@ def main():
                        help="Output directory for results")
     parser.add_argument("--max_tokens", type=int, default=128,
                        help="Maximum new tokens for generation")
-    
+    parser.add_argument("--flip_horizontal", action="store_true",
+                       help="Mirror all images horizontally before inference (left becomes right)")
+
     args = parser.parse_args()
     
     JSONL_INPUT = args.input
@@ -64,6 +68,7 @@ def main():
     MODEL_NAME = args.model
     OUTPUT_DIR = args.output
     MAX_NEW_TOKENS = args.max_tokens
+    FLIP_HORIZONTAL = args.flip_horizontal
 
     if not os.path.exists(JSONL_INPUT):
         print(f"ERROR: JSONL file '{JSONL_INPUT}' not found")
@@ -101,7 +106,7 @@ def main():
     elif "internvl" in model_lower:
         from scripts.infer_internvl import load_internvl_model, prepare_internvl_inputs, generate_internvl
         model, processor = load_internvl_model(MODEL_NAME, multi_gpu)
-        inference_fn = lambda m, p, imgs, prompt, max_tok: generate_internvl(m, p, *prepare_internvl_inputs(imgs), prompt, max_tok)
+        inference_fn = lambda m, p, imgs, prompt, max_tok: generate_internvl(m, p, *prepare_internvl_inputs(imgs, flip=FLIP_HORIZONTAL), prompt, max_tok)
 
     elif "molmo" in model_lower:
         from scripts.infer_molmo import load_molmo_model, prepare_molmo_inputs, generate_molmo
@@ -122,7 +127,7 @@ def main():
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
                 output_file = f.name
             try:
-                gemini_run_inference(imgs, prompt_file, output_file, MODEL_NAME, max_tok)
+                gemini_run_inference(imgs, prompt_file, output_file, MODEL_NAME, max_tok, flip=FLIP_HORIZONTAL)
                 with open(output_file, 'r') as f:
                     result = f.read().strip()
                 return result
@@ -158,7 +163,7 @@ def main():
         try:
             prediction = run_inference(
                 image_paths, full_prompt, model, processor,
-                inference_fn, MAX_NEW_TOKENS, MODEL_NAME
+                inference_fn, MAX_NEW_TOKENS, MODEL_NAME, flip=FLIP_HORIZONTAL
             )
 
             # Memory cleanup
