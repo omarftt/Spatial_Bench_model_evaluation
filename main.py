@@ -83,6 +83,8 @@ def main():
         samples = [json.loads(line) for line in f if line.strip()]
 
     print(f"Model: {MODEL_NAME}")
+    if FLIP_HORIZONTAL:
+        print("Horizontal flip: ENABLED (left <-> right)")
     print(f"Processing {len(samples)} samples...\n")
 
     # Load model once
