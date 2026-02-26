@@ -8,9 +8,11 @@ from qwen_vl_utils import process_vision_info
 from prompts import SYSTEM_PROMPT
 
 
-def load_and_preprocess(path):
-    """Open an image"""
+def load_and_preprocess(path, flip=False):
+    """Open an image, optionally flipping it horizontally."""
     img = Image.open(path).convert("RGB")
+    if flip:
+        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
     return img
 
 
@@ -38,21 +40,21 @@ def load_model(model_name, device):
     return model
 
 
-def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens):
+def run_inference(image_paths, prompt_file, output_file, model_name, max_new_tokens, flip=False):
     """Run inference on multiple images with the given prompt."""
-    
+
     with open(prompt_file, 'r', encoding='utf-8') as f:
         prompt = f.read()
-    
+
     # Load model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = load_model(model_name, device)
-    
+
     # Load processor (works for all Qwen models)
     processor = AutoProcessor.from_pretrained(model_name)
 
     # Load and resize all images
-    images = [load_and_preprocess(img_path) for img_path in image_paths]
+    images = [load_and_preprocess(img_path, flip=flip) for img_path in image_paths]
     
     # Build message content with all images
     content = []
@@ -111,14 +113,16 @@ def main():
     parser.add_argument("--output_file", required=True, help="Path to file for output text")
     parser.add_argument("--model", default="Qwen/Qwen2.5-VL-7B-Instruct", help="Qwen model name")
     parser.add_argument("--max_new_tokens", type=int, default=128)
+    parser.add_argument("--flip_horizontal", action="store_true", help="Mirror images horizontally before inference")
     args = parser.parse_args()
-    
+
     run_inference(
         image_paths=args.images,
         prompt_file=args.prompt_file,
         output_file=args.output_file,
         model_name=args.model,
-        max_new_tokens=args.max_new_tokens
+        max_new_tokens=args.max_new_tokens,
+        flip=args.flip_horizontal,
     )
 
 

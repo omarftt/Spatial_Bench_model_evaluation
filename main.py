@@ -20,14 +20,17 @@ def main():
                        help="Output directory for results")
     parser.add_argument("--max_tokens", type=int, default=128,
                        help="Maximum new tokens for generation")
-    
+    parser.add_argument("--flip_horizontal", action="store_true",
+                       help="Mirror all images horizontally before inference (left becomes right)")
+
     args = parser.parse_args()
-    
+
     JSONL_INPUT = args.input
     IMAGE_FOLDER = args.images
     MODEL_NAME = args.model
     OUTPUT_DIR = args.output
     MAX_NEW_TOKENS = args.max_tokens
+    FLIP_HORIZONTAL = args.flip_horizontal
     
     # Auto-detect inference script from scripts/ folder
     INFER_SCRIPT = get_inference_script(MODEL_NAME)
@@ -51,6 +54,8 @@ def main():
     
     print(f"Model: {MODEL_NAME}")
     print(f"Inference script: {INFER_SCRIPT}")
+    if FLIP_HORIZONTAL:
+        print("Horizontal flip: ENABLED (left <-> right)")
     print(f"Processing {len(samples)} samples...\n")
     
     results = []
@@ -85,6 +90,8 @@ def main():
                 "--model", MODEL_NAME,
                 "--max_new_tokens", str(MAX_NEW_TOKENS),
             ]
+            if FLIP_HORIZONTAL:
+                cmd.append("--flip_horizontal")
             
             subprocess.run(cmd, check=True, text=True, capture_output=True, encoding="utf-8")
             
