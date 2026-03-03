@@ -9,6 +9,6 @@ Do NOT provide explanations, reasoning, analysis, or any additional text.
 Do NOT include multiple answers.
 Your response must consist of a single line only.
 
-The answer MUST be based strictly on the visual evidence in the two images.
+The answer MUST be based strictly on the visual evidence in the images.
 If more than one option appears plausible, select the single most consistent option with the given views.
 """
